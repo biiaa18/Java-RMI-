@@ -1,7 +1,7 @@
-package main.java.com.ass1;
+package com.ass1;
 
-import main.java.com.ass1.client.Client;
-import main.java.com.ass1.server.ServerSimulator;
+import com.ass1.client.Client;
+import com.ass1.server.ServerSimulator;
 
 import java.util.concurrent.CountDownLatch;
 

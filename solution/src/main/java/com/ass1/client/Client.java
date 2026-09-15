@@ -1,11 +1,11 @@
-package main.java.com.ass1.client;
+package com.ass1.client;
 
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
-import main.java.com.ass1.server.ServerInterface;
+import com.ass1.server.ServerInterface;
 
 public class Client {
     public static void main() {
