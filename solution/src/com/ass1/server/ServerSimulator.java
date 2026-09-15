@@ -10,10 +10,6 @@ public class ServerSimulator implements ServerInterface{
     private static ServerSimulator INSTANCE;
     private static final java.util.concurrent.CountDownLatch STOP_LATCH = new java.util.concurrent.CountDownLatch(1);
 
-    public int Add(int num1, int num2) {
-        return num1 + num2;
-    }
-
     public static void start(Registry registry){
         try {
             ServerSimulator server = new ServerSimulator();
@@ -29,6 +25,10 @@ public class ServerSimulator implements ServerInterface{
             Thread.currentThread().interrupt();
         }
 
+    }
+
+    public int Add(int num1, int num2) {
+        return num1 + num2;
     }
 
 }

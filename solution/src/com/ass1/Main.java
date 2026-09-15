@@ -1,6 +1,7 @@
 package com.ass1;
 
 import com.ass1.client.Client;
+import com.ass1.server.ProxyServer;
 import com.ass1.server.ServerSimulator;
 
 import java.util.concurrent.CountDownLatch;
@@ -22,6 +23,9 @@ public class Main {
             e.printStackTrace();
             return;
         }
+
+        Thread proxyServerThread = new Thread(() -> ProxyServer.start(registry), "rmi-proxy-server-thread");
+        proxyServerThread.start();
 
         Thread serverThread = new Thread(() -> ServerSimulator.start(registry), "rmi-server-thread");
         serverThread.start();
