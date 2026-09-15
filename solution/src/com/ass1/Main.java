@@ -4,6 +4,9 @@ import com.ass1.client.Client;
 import com.ass1.server.ServerSimulator;
 
 import java.util.concurrent.CountDownLatch;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.RemoteException;
 
 public class Main {
     public static void main(String[] args) {
@@ -11,9 +14,16 @@ public class Main {
 
         Runtime.getRuntime().addShutdownHook(new Thread(stopLatch::countDown));
 
-        Thread serverThread = new Thread(ServerSimulator::main, "rmi-server-thread");
-        Thread clientThread = new Thread(Client::main, "rmi-client-thread");
+        Registry registry;
+        try {
+            registry = LocateRegistry.createRegistry(1099);
+            System.out.println("Created registry on port 1099");
+        } catch (RemoteException e) {
+            e.printStackTrace();
+            return;
+        }
 
+        Thread serverThread = new Thread(() -> ServerSimulator.start(registry), "rmi-server-thread");
         serverThread.start();
 
         try {
@@ -22,6 +32,7 @@ public class Main {
             Thread.currentThread().interrupt();
         }
 
+        Thread clientThread = new Thread(Client::main, "rmi-client-thread");
         clientThread.start();
 
         try {
