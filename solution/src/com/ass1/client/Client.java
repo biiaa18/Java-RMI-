@@ -6,13 +6,13 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
 import com.ass1.server.ProxyInterface;
-import com.ass1.server.ServerInterface;
+import com.ass1.server.ServiceInterface;
 
 public class Client {
     public static void main() {
         try {
             Registry registry = LocateRegistry.getRegistry(1099);
-            ServerInterface server = (ServerInterface) registry.lookup("server");
+            ServiceInterface server = (ServiceInterface) registry.lookup("server-1");
             ProxyInterface proxyServer = (ProxyInterface) registry.lookup("proxyServer");
             System.out.println(server.Add(10,20));
             System.out.println(proxyServer.GetServer());
