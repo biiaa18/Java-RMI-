@@ -1,7 +1,9 @@
 package com.ass1.client;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -12,6 +14,9 @@ import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.lang.reflect.Method;
+import java.util.concurrent.TimeUnit;
+import java.io.FileWriter;
+import java.util.stream.Collectors;
 
 import com.ass1.server.ProxyInterface;
 import com.ass1.server.ServerInterface;
@@ -20,7 +25,11 @@ import com.ass1.ServerInfo;
 
 public class Client {
     private static ProxyInterface proxyServer;
-    public static void main() {
+    private static String writeOriginalInputQuery(List<Objects> args){
+        return args.stream().map(Object::toString).collect(Collectors.joining(" "));
+    }
+     public static void main() throws Exception{
+        BufferedWriter writeOutputFile= new BufferedWriter(new FileWriter("naive_server.txt"));
         List<Request> requests=new ArrayList<>();
         //todo: should this be a thread as well?
         try {
@@ -54,6 +63,7 @@ public class Client {
         ExecutorService invokeRequestsConcurrently= Executors.newCachedThreadPool();
         long T=50; //TODO:: fix T switch between 50 or 20,or run twice with each value??
         for(Request request: requests){
+            long requestSubmittedTime=System.currentTimeMillis();
             invokeRequestsConcurrently.submit(()->{
                 try{
                     ServerInfo correctServerInfo=proxyServer.GetServer(request.getZoneNumber());
@@ -67,7 +77,25 @@ public class Client {
                     Object result=serverMethod.invoke(correctServer,request.getArgList().toArray());
                     long endOfInvocation=System.currentTimeMillis();
 
-
+                    long executionTime=endOfInvocation-startOfInvocation;
+                    long turnaroundTime=endOfInvocation-requestSubmittedTime;
+                    long waitingTime=turnaroundTime-executionTime;
+                    //writing to output file
+                    // <result> <input query> (turnaround time: YY ms, execution time:
+                    //ZZ ms, waiting time: TT ms, processed by Server <server#>)
+                    synchronized(writeOutputFile){
+                        writeOutputFile.write(
+                                         result+" "+
+                                        request.getMethodName() + " "+
+                                                 writeOriginalInputQuery(request.getArgList()) + " Zone:"+
+                                        request.getZoneNumber() + " (turnaround time: "+
+                                        turnaroundTime +" ms, execution time: "+
+                                        executionTime+" ms, waiting time: "+
+                                        waitingTime+" ms, processed by Server "+
+                                        correctServerInfo.serverName+")\n"
+                        );
+                        writeOutputFile.flush();
+                    }
 
                 }
                 catch(Exception e){
@@ -83,5 +111,8 @@ public class Client {
 
             //System.out.println("'"+request.getMethodName()+"'  '"+request.getArgList()+"'  '"+request.getZoneNumber()+"'");
         }
+        invokeRequestsConcurrently.shutdown();
+        //invokeRequestsConcurrently.awaitTermination(10, TimeUnit.SECONDS);
+         writeOutputFile.close();
     }
 }
