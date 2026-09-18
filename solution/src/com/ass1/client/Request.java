@@ -8,19 +8,19 @@ public class Request {
     private String methodName=null;
     private List<String> argList=null;
     private Integer zoneNumber=null;
+    private Class<?>[] argTypesList=null;
 
     public String getMethodName(){return methodName;}
     public List<String> getArgList(){return argList;}
-
-    public Integer getZoneNumber() {
-        return zoneNumber;
-    }
+    public Integer getZoneNumber() {return zoneNumber;}
+    public Class<?>[] getArgTypesList() {return argTypesList;}
 
     ///for making new request object, when reading request line
-    public Request(String inputMethod, List<String> argumentsList, Integer zoneN){
+    public Request(String inputMethod, List<String> argumentsList, Integer zoneN, Class<?>[] argTypes){
         this.methodName=inputMethod;
         this.argList=argumentsList;
         this.zoneNumber=zoneN;
+        this.argTypesList=argTypes;
     }
 
     ///read line and split it into arguments
@@ -33,7 +33,20 @@ public class Request {
         Integer clientZoneNumber=Integer.parseInt(requestArguments.removeLast().split(":")[1]);
         //based on method, number of arguments change, but city can also be of several words
         List<String> arguments= splitArguments(methodNamee,requestArguments);
-        return new Request(methodNamee,arguments, clientZoneNumber);
+        Class<?>[] typesOfArg=defineArgTypes(arguments);
+        return new Request(methodNamee,arguments, clientZoneNumber,typesOfArg);
+    }
+
+    ///need to match argument types with function we remotely call later, to find it
+    private static Class<?>[] defineArgTypes(List<String> arguments) {
+        Class<?>[] typesOfArgg=new Class<?>[arguments.size()];
+        for(int i=0; i<arguments.size();i++){
+            String argument=arguments.get(i);
+            //check for negative int and find how many numbers
+            if(argument.matches("-?\\d+")){typesOfArgg[i]=int.class;}
+            else {typesOfArgg[i]=String.class;}
+        }
+            return typesOfArgg;
     }
 
     ///split arguments correctly (case: city of 2 words)

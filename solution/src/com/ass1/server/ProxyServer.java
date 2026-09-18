@@ -5,6 +5,8 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import com.ass1.ServerInfo;
+import com.ass1.server.ServerInterface;
 
 public class ProxyServer implements ProxyInterface {
     private static ProxyServer INSTANCE;
@@ -27,7 +29,15 @@ public class ProxyServer implements ProxyInterface {
     }
 
     @Override
-    public int GetServer() throws RemoteException {
-        return 0;
+    public ServerInfo GetServer(int zoneN) throws RemoteException {
+        //lookup server with zoneN in server simulator
+        //remember!!!! add logic of overloaded servers and non existent servers in client zone
+        ///redo logic below:
+        //ServerInterface server = (ServerInterface) registry.lookup("server");
+        ServerInfo info=new ServerInfo();
+        info.port=3;
+        info.host=" ";
+        info.serverName="server";
+        return info;
     }
 }
