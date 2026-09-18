@@ -16,7 +16,7 @@ public class ServerSimulator {
             int _port = port;
             new Thread(() -> {
                 Server server = new Server(registry, _port);
-                servers[_port] = server;
+                servers[_port - 1] = server;
             }, serverName).start();
         }
     }
