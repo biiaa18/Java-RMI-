@@ -47,7 +47,13 @@ public class Main {
             Thread.currentThread().interrupt();
         }
 
-        Thread clientThread = new Thread(Client::main, "rmi-client-thread");
+        Thread clientThread = new Thread(()->{
+            try{
+                Client.main();
+            }catch(Exception e){
+                throw new RuntimeException(e);
+            }
+        },"rmi-client-thread");
         clientThread.start();
 
         try {

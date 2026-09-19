@@ -6,11 +6,12 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import com.ass1.ServerInfo;
-import com.ass1.server.ServerInterface;
+import com.ass1.server.ServiceInterface;
 
 public class ProxyServer implements ProxyInterface {
     private static ProxyServer INSTANCE;
     private static final java.util.concurrent.CountDownLatch STOP_LATCH = new java.util.concurrent.CountDownLatch(1);
+    private static Integer maxRequests=18;
 
     public static void start(Registry registry){
         try {

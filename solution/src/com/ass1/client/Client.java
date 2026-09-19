@@ -19,13 +19,13 @@ import java.io.FileWriter;
 import java.util.stream.Collectors;
 
 import com.ass1.server.ProxyInterface;
-import com.ass1.server.ServerInterface;
+import com.ass1.server.ServiceInterface;
 import com.ass1.client.Request;
 import com.ass1.ServerInfo;
 
 public class Client {
     private static ProxyInterface proxyServer;
-    private static String writeOriginalInputQuery(List<Objects> args){
+    private static String writeOriginalInputQuery(List<Object> args){
         return args.stream().map(Object::toString).collect(Collectors.joining(" "));
     }
      public static void main() throws Exception{
@@ -69,7 +69,7 @@ public class Client {
                     ServerInfo correctServerInfo=proxyServer.GetServer(request.getZoneNumber());
                     //second rmi lookup for DB server and get ROR (remote object reference)
                     Registry serverRegistry = LocateRegistry.getRegistry(correctServerInfo.host,correctServerInfo.port);
-                    ServerInterface correctServer=(ServerInterface)serverRegistry.lookup(correctServerInfo.serverName);
+                    ServiceInterface correctServer=(ServiceInterface)serverRegistry.lookup(correctServerInfo.serverName);
 
                     Method serverMethod=correctServer.getClass().getMethod(request.getMethodName(), request.getArgTypesList());
 
