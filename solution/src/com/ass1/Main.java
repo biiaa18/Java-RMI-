@@ -1,10 +1,11 @@
 package com.ass1;
 
+import com.ass1.Database.DatabaseConnector;
 import com.ass1.client.Client;
 import com.ass1.server.ProxyServer;
-import com.ass1.server.Server;
 import com.ass1.server.ServerSimulator;
 
+import java.sql.SQLException;
 import java.util.concurrent.CountDownLatch;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -29,6 +30,13 @@ public class Main {
 
         Thread proxyServerThread = new Thread(() -> ProxyServer.start(registry), "rmi-proxy-server-thread");
         proxyServerThread.start();
+
+        // Initialize the database before starting the ServerSimulator
+        try {
+            DatabaseConnector.initializeDatabase();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
 
         ServerSimulator serverSimulator = new ServerSimulator();
         serverSimulator.initServers(registry);
