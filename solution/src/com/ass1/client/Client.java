@@ -8,6 +8,8 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Scanner;
@@ -18,9 +20,11 @@ import java.util.concurrent.TimeUnit;
 import java.io.FileWriter;
 import java.util.stream.Collectors;
 
+
 import com.ass1.server.ProxyInterface;
 import com.ass1.server.ServiceInterface;
 import com.ass1.client.Request;
+import com.ass1.client.RequestStatistics;
 import com.ass1.ServerInfo;
 
 public class Client {
@@ -31,6 +35,7 @@ public class Client {
      public static void main() throws Exception{
         BufferedWriter writeOutputFile= new BufferedWriter(new FileWriter("naive_server.txt"));
         List<Request> requests=new ArrayList<>();
+        Map<String, RequestStatistics> statisticsMap= new HashMap<>();
         //todo: should this be a thread as well?
         try {
             //first rmi lookup to find proxy
@@ -63,6 +68,8 @@ public class Client {
         ExecutorService invokeRequestsConcurrently= Executors.newCachedThreadPool();
         long T=50; //TODO:: fix T switch between 50 or 20,or run twice with each value??
         for(Request request: requests){
+            //initialize new method entry
+            statisticsMap.putIfAbsent(request.getMethodName(),new RequestStatistics());
             long requestSubmittedTime=System.currentTimeMillis();
             invokeRequestsConcurrently.submit(()->{
                 try{
@@ -80,6 +87,7 @@ public class Client {
                     long executionTime=endOfInvocation-startOfInvocation;
                     long turnaroundTime=endOfInvocation-requestSubmittedTime;
                     long waitingTime=turnaroundTime-executionTime;
+                    statisticsMap.get(request.getMethodName()).sumTimeStatistics(turnaroundTime,executionTime,waitingTime);
                     //writing to output file
                     // <result> <input query> (turnaround time: YY ms, execution time:
                     //ZZ ms, waiting time: TT ms, processed by Server <server#>)
@@ -113,6 +121,10 @@ public class Client {
         }
         invokeRequestsConcurrently.shutdown();
         //invokeRequestsConcurrently.awaitTermination(10, TimeUnit.SECONDS);
+         //6 entries of statistics per method
+         for(Map.Entry<String,RequestStatistics> methodEntry: statisticsMap.entrySet()){
+             writeOutputFile.write(methodEntry.getValue().getStatistics(methodEntry.getKey())+"\n");
+         }
          writeOutputFile.close();
     }
 }
