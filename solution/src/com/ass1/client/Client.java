@@ -40,7 +40,7 @@ public class Client {
         try {
             //first rmi lookup to find proxy
             Registry registry = LocateRegistry.getRegistry(1099);
-            proxyServer = (ProxyInterface) registry.lookup("proxyServer");
+            proxyServer = (ProxyInterface) registry.lookup("proxyClientAPI");
             //            System.out.println(server.Add(10,20));
             //System.out.println(proxyServer.GetServer());
 
@@ -126,5 +126,6 @@ public class Client {
              writeOutputFile.write(methodEntry.getValue().getStatistics(methodEntry.getKey())+"\n");
          }
          writeOutputFile.close();
+         System.out.println(("done"));
     }
 }

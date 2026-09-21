@@ -2,6 +2,7 @@ package com.ass1.server;
 
 import com.ass1.Database.DatabaseConnector;
 
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
@@ -17,11 +18,14 @@ public class Server implements ServiceInterface {
             this.databaseConnector = new DatabaseConnector();
             ServiceInterface serverStub = (ServiceInterface) UnicastRemoteObject.exportObject(this, 0);
             registry.bind("server-" + port, serverStub);
-            // TODO: Register server on proxy server API
+            // TODO: Register server on proxy server API (change values)
+            ProxyInterfaceForServerRegistration proxyRegister=(ProxyInterfaceForServerRegistration) registry.lookup("proxyServerAPI");
+            proxyRegister.registerServer("server-1",1099,"localhost",1);
+            //
             System.out.printf("Server bound as 'server-%s' on registry%n", port);
             // keep running
             STOP_LATCH.await();
-        } catch (RemoteException | AlreadyBoundException e) {
+        } catch (RemoteException | AlreadyBoundException | NotBoundException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

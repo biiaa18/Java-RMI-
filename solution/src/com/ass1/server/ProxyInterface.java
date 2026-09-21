@@ -4,6 +4,7 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import com.ass1.ServerInfo;
 
+//client-proxy API
 public interface ProxyInterface extends Remote {
 
     ///return host, port and server name so client can request correct server to talk to database

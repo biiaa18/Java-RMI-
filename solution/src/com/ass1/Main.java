@@ -38,6 +38,12 @@ public class Main {
             throw new RuntimeException(e);
         }
 
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
         ServerSimulator serverSimulator = new ServerSimulator();
         serverSimulator.initServers(registry);
 

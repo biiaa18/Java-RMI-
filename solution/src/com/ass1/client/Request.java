@@ -56,7 +56,7 @@ public class Request {
             //check for negative int and find how many numbers
             //save type to array of types and change type in the argument list as well
             if (argument.matches("-?\\d+")) {
-                typesOfArgg[i] = int.class;
+                typesOfArgg[i] = Integer.class;
                 arguments.set(i, Integer.parseInt(argument));
             } else {
                 typesOfArgg[i] = String.class;
