@@ -14,8 +14,4 @@ public class ServerInfo implements  Serializable {
         this.serverName=name;
         this.zone=zonee;
     }
-
-    public int getZone() {
-        return zone;
-    }
 }

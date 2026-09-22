@@ -33,6 +33,15 @@ public class Server implements ServiceInterface {
     }
 
     @Override
+    public int getQueueSize() throws RemoteException {
+        //TODO:change this logic
+        int min=0;
+        int max=18;
+        int size= (int) (Math.random()*(max-min));
+        return size;
+    }
+
+    @Override
     public Integer getPopulationofCountry(String countryName) throws RemoteException {
         return this.databaseConnector.getPopulationofCountry(countryName);
     }
