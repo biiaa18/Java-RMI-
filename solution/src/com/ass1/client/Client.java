@@ -70,7 +70,6 @@ public class Client {
         for(Request request: requests){
             //initialize new method entry
             statisticsMap.putIfAbsent(request.getMethodName(),new RequestStatistics());
-            long requestSubmittedTime=System.currentTimeMillis();
             invokeRequestsConcurrently.submit(()->{
                 try{
                     ServerInfo correctServerInfo=proxyServer.GetServer(request.getZoneNumber());
@@ -80,13 +79,12 @@ public class Client {
 
                     Method serverMethod=correctServer.getClass().getMethod(request.getMethodName(), request.getArgTypesList());
 
-                    long startOfInvocation=System.currentTimeMillis();
+                    long turnaroundTimeStart=System.currentTimeMillis();
                     Object result=serverMethod.invoke(correctServer,request.getArgList().toArray());
-                    long endOfInvocation=System.currentTimeMillis();
-
-                    long executionTime=endOfInvocation-startOfInvocation;
-                    long turnaroundTime=endOfInvocation-requestSubmittedTime;
-                    long waitingTime=turnaroundTime-executionTime;
+                    long turnaroundTimeEnd=System.currentTimeMillis();
+                    long turnaroundTime=turnaroundTimeEnd-turnaroundTimeStart;
+                    long executionTime=0; //TODO: CHANGE TO: result.executionTime;
+                    long waitingTime=0; // TODO: CHANGE TO: result.waitingTime
                     statisticsMap.get(request.getMethodName()).sumTimeStatistics(turnaroundTime,executionTime,waitingTime);
                     //writing to output file
                     // <result> <input query> (turnaround time: YY ms, execution time:
@@ -99,7 +97,7 @@ public class Client {
                                         request.getZoneNumber() + " (turnaround time: "+
                                         turnaroundTime +" ms, execution time: "+
                                         executionTime+" ms, waiting time: "+
-                                        waitingTime+" ms, processed by Server "+
+                                                 waitingTime+" ms, processed by Server "+
                                         correctServerInfo.serverName+")\n"
                         );
                         writeOutputFile.flush();

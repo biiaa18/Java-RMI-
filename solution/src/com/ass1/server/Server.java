@@ -43,6 +43,16 @@ public class Server implements ServiceInterface {
 
     @Override
     public Integer getPopulationofCountry(String countryName) throws RemoteException {
+        //TODO: remember to gather statistics time on every method
+//        long waitingTimeStart=System.currentTimeMillis();
+        //add request to waiting list
+//        long waitingTimeEnd= System.currentTimeMillis();
+//        long executionTimeStart=System.currentTimeMillis();
+        //Object result= this.databaseConnector....
+//        long executionTimeEnd=System.currentTimeMillis();
+//        long waitingTime=waitingTimeEnd-waitingTimeStart;
+//        long executionTime=executionTimeEnd-executionTimeStart;
+        //return object or list with arguments ; waitingTime; executionTime.
         return this.databaseConnector.getPopulationofCountry(countryName);
     }
 
