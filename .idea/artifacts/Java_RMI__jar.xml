@@ -1,0 +1,9 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="Java-RMI-:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/Java_RMI__jar</output-path>
+    <root id="archive" name="Java-RMI-.jar">
+      <element id="module-output" name="Java-RMI-" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/xerial/sqlite-jdbc/3.53.4.0/sqlite-jdbc-3.53.4.0.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>
