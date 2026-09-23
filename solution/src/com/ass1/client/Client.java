@@ -29,13 +29,12 @@ import com.ass1.ServerInfo;
 
 public class Client {
     private static ProxyInterface proxyServer;
+    private Map<String, RequestStatistics> statisticsMap= new HashMap<>();
+    private static List<Request> requests=new ArrayList<>();
     private static String writeOriginalInputQuery(List<Object> args){
         return args.stream().map(Object::toString).collect(Collectors.joining(" "));
     }
      public static void main() throws Exception{
-        BufferedWriter writeOutputFile= new BufferedWriter(new FileWriter("naive_server.txt"));
-        List<Request> requests=new ArrayList<>();
-        Map<String, RequestStatistics> statisticsMap= new HashMap<>();
         //todo: should this be a thread as well?
         try {
             //first rmi lookup to find proxy
@@ -64,9 +63,20 @@ public class Client {
             throw new RuntimeException(e);
         }
 
+        //call writing 2 times with different delay T
+        BufferedWriter writeOutputFile= new BufferedWriter(new FileWriter("naive_server.txt"));
+        Client client =new Client();
+        client.runClientWithDelay(50,writeOutputFile);
+        client.runClientWithDelay(20,writeOutputFile);
+        writeOutputFile.close();
+    }
+
+    public void runClientWithDelay(long T, BufferedWriter writeOutputFile) throws Exception{
+        writeOutputFile.write("-----------T="+T+"\n");
         ///for each request, invoke method remotely concurrently, simulate delay
         ExecutorService invokeRequestsConcurrently= Executors.newCachedThreadPool();
-        long T=50; //TODO:: fix T switch between 50 or 20,or run twice with each value??
+
+        statisticsMap.clear();
         for(Request request: requests){
             //initialize new method entry
             statisticsMap.putIfAbsent(request.getMethodName(),new RequestStatistics());
@@ -76,9 +86,9 @@ public class Client {
                     //second rmi lookup for DB server and get ROR (remote object reference)
                     Registry serverRegistry = LocateRegistry.getRegistry(correctServerInfo.host,correctServerInfo.port);
                     ServiceInterface correctServer=(ServiceInterface)serverRegistry.lookup(correctServerInfo.serverName);
-
+                    //find matching method in server
                     Method serverMethod=correctServer.getClass().getMethod(request.getMethodName(), request.getArgTypesList());
-
+                    //remote method invocation and turnaround time start
                     long turnaroundTimeStart=System.currentTimeMillis();
                     Object result=serverMethod.invoke(correctServer,request.getArgList().toArray());
                     long turnaroundTimeEnd=System.currentTimeMillis();
@@ -91,13 +101,13 @@ public class Client {
                     //ZZ ms, waiting time: TT ms, processed by Server <server#>)
                     synchronized(writeOutputFile){
                         writeOutputFile.write(
-                                         result+" "+
+                                result+" "+
                                         request.getMethodName() + " "+
-                                                 writeOriginalInputQuery(request.getArgList()) + " Zone:"+
+                                        writeOriginalInputQuery(request.getArgList()) + " Zone:"+
                                         request.getZoneNumber() + " (turnaround time: "+
                                         turnaroundTime +" ms, execution time: "+
                                         executionTime+" ms, waiting time: "+
-                                                 waitingTime+" ms, processed by Server "+
+                                        waitingTime+" ms, processed by Server "+
                                         correctServerInfo.serverName+")\n"
                         );
                         writeOutputFile.flush();
@@ -109,7 +119,7 @@ public class Client {
                 }
             });
             try{
-            Thread.sleep(T);
+                Thread.sleep(T);
             }
             catch(InterruptedException e){
                 e.printStackTrace();
@@ -119,11 +129,12 @@ public class Client {
         }
         invokeRequestsConcurrently.shutdown();
         //invokeRequestsConcurrently.awaitTermination(10, TimeUnit.SECONDS);
-         //6 entries of statistics per method
-         for(Map.Entry<String,RequestStatistics> methodEntry: statisticsMap.entrySet()){
-             writeOutputFile.write(methodEntry.getValue().getStatistics(methodEntry.getKey())+"\n");
-         }
-         writeOutputFile.close();
-         System.out.println(("done"));
+        //6 entries of statistics per method
+        for(Map.Entry<String,RequestStatistics> methodEntry: statisticsMap.entrySet()){
+            writeOutputFile.write(methodEntry.getValue().getStatistics(methodEntry.getKey())+"\n");
+        }
+        //writeOutputFile.close();
+        writeOutputFile.write("\n\n\n");
+        System.out.println(("done"));
     }
 }
