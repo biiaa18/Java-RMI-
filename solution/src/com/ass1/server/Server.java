@@ -9,6 +9,8 @@ import java.rmi.server.UnicastRemoteObject;
 import java.rmi.AlreadyBoundException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class Server implements ServiceInterface {
     private static final java.util.concurrent.CountDownLatch STOP_LATCH = new java.util.concurrent.CountDownLatch(1);
@@ -18,33 +20,40 @@ public class Server implements ServiceInterface {
     private final AtomicBoolean requestProcessingThreadAlive = new AtomicBoolean(true);
     private int zone;
 
-    public Server(Registry registry, int port, int zone) {
+    public Server(Registry proxyRegistry, Registry workerRegistry, int workerPort, int zone,
+                  CountDownLatch ready, AtomicReference<Throwable> startupFailure) {
         super();
         try {
             this.zone = zone;
             this.databaseConnector = new DatabaseConnector();
             // Bind the server to the RMI registry
-            String serverName = "server-" + port;
+            String serverName = "server-" + zone;
             ServiceInterface taskRegistrationServer = (ServiceInterface) UnicastRemoteObject.exportObject(this, 0);
-            registry.bind(serverName, taskRegistrationServer);
+            workerRegistry.bind(serverName, taskRegistrationServer);
             // Start the task processing thread
             Thread taskThread = new Thread(() -> {
                 while (requestProcessingThreadAlive.get()) {
                     taskQueue.executeNext();
                 }
-            }, "server-task-worker-" + port);
+            }, "server-task-worker-" + workerPort);
             taskThread.start();
             // Register server on proxy server API
-            ProxyInterfaceForServerRegistration proxyRegister=(ProxyInterfaceForServerRegistration) registry.lookup("proxyServerAPI");
-            proxyRegister.registerServer(serverName, port, "localhost", this.zone);
+            ProxyInterfaceForServerRegistration proxyRegister =
+                    (ProxyInterfaceForServerRegistration) proxyRegistry.lookup("proxyServerAPI");
+            proxyRegister.registerServer(serverName, workerPort, "localhost", this.zone);
             System.out.printf("Server bound as '%s' on registry%n", serverName);
+            ready.countDown();
             // keep running
             STOP_LATCH.await();
             requestProcessingThreadAlive.set(false);
         } catch (RemoteException | AlreadyBoundException | NotBoundException e) {
+            startupFailure.compareAndSet(null, e);
             e.printStackTrace();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            startupFailure.compareAndSet(null, e);
+        } finally {
+            ready.countDown();
         }
     }
 

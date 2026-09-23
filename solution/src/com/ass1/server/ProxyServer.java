@@ -9,6 +9,7 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.ass1.ServerInfo;
 import com.ass1.client.RequestStatistics;
@@ -18,9 +19,9 @@ public class ProxyServer implements ProxyInterface, ProxyInterfaceForServerRegis
     private static ProxyServer INSTANCE;
     //private static final java.util.concurrent.CountDownLatch STOP_LATCH = new java.util.concurrent.CountDownLatch(1);
     private static Integer maxRequests=18;
-    Map<Integer, ServerInfo> servers= new HashMap<>();
-    Map<String,Integer> serversReturned=new HashMap<>();
-    Map<String,Integer> serversWithQueueSize=new HashMap<>();
+    Map<Integer, ServerInfo> servers = new ConcurrentHashMap<>();
+    Map<String,Integer> serversReturned = new ConcurrentHashMap<>();
+    Map<String,Integer> serversWithQueueSize = new ConcurrentHashMap<>();
 
     public static void start(Registry registry){
         try {
@@ -51,7 +52,7 @@ public class ProxyServer implements ProxyInterface, ProxyInterfaceForServerRegis
         int N=zone;
         while(!servers.containsKey(N)){
             N++;
-            if(N>servers.size()){
+            if(N>ServerSimulator.SERVER_COUNT){
                 N=1;
             }
         }
@@ -75,8 +76,10 @@ public class ProxyServer implements ProxyInterface, ProxyInterfaceForServerRegis
     }
 
     private boolean isServerCloserClockwise(int clientZone, int serverZone1, int serverZone2){
-        int client1Steps=(serverZone1-clientZone + servers.size())%servers.size();
-        int client2Steps=(serverZone2-clientZone + servers.size())%servers.size();
+        int client1Steps=(serverZone1-clientZone + ServerSimulator.SERVER_COUNT)
+                % ServerSimulator.SERVER_COUNT;
+        int client2Steps=(serverZone2-clientZone + ServerSimulator.SERVER_COUNT)
+                % ServerSimulator.SERVER_COUNT;
         return client1Steps<client2Steps;
     }
 
@@ -84,7 +87,7 @@ public class ProxyServer implements ProxyInterface, ProxyInterfaceForServerRegis
         int minQueueSize=5000;//just number bigger than all number of requests
         ServerInfo leastOverloaded=null;
         for( ServerInfo info: servers.values()){
-            int queueSize=serversWithQueueSize.get(info.serverName);
+            int queueSize=serversWithQueueSize.getOrDefault(info.serverName, 0);
             if(queueSize<minQueueSize){
                 minQueueSize=queueSize;
                 leastOverloaded=info;
@@ -92,7 +95,8 @@ public class ProxyServer implements ProxyInterface, ProxyInterfaceForServerRegis
             //a draw: equal queue size, choose clockwise:
             else if (queueSize==minQueueSize){
                 //if other server (info) is closer clockwise, will return true
-                if(isServerCloserClockwise(zone,info.zone,leastOverloaded.zone)){
+                if(leastOverloaded != null
+                        && isServerCloserClockwise(zone,info.zone,leastOverloaded.zone)){
                     //reassign to server which is closest clockwise
                     leastOverloaded=info;
                 }
@@ -103,13 +107,19 @@ public class ProxyServer implements ProxyInterface, ProxyInterfaceForServerRegis
 
     @Override
     public ServerInfo GetServer(int zoneN) throws RemoteException {
+        if (servers.isEmpty()) {
+            throw new RemoteException("No worker servers have registered with the proxy");
+        }
         int existingZone=checkServerInZone(zoneN);
         //found server in same zone as client's request, can check queue overload
         ServerInfo info=servers.get(existingZone);
+        if (info == null) {
+            throw new RemoteException("No worker server is registered for zone " + zoneN);
+        }
         //check if server is not overloaded (waiting queue size <18)
-        if(serversWithQueueSize.get(info.serverName)<maxRequests){
+        if(serversWithQueueSize.getOrDefault(info.serverName, 0) < maxRequests){
             //update that server has been returned to client once more
-            Integer lastCount=serversReturned.get(info.serverName);
+            Integer lastCount=serversReturned.getOrDefault(info.serverName, 0);
             serversReturned.put(info.serverName,lastCount+1);
             //update server queue size, if server was returned 18 times
             if(serversReturned.get(info.serverName)>=18){
@@ -128,7 +138,8 @@ public class ProxyServer implements ProxyInterface, ProxyInterfaceForServerRegis
     }
 
     @Override
-    public void registerServer(String name, int port, String host, int zone) throws RemoteException{
+    public synchronized void registerServer(String name, int port, String host, int zone)
+            throws RemoteException {
         ServerInfo info= new ServerInfo(port,host,name,zone);
         servers.put(zone,info);
         serversReturned.put(name,0);

@@ -45,7 +45,8 @@ public class Client {
             //System.out.println(proxyServer.GetServer());
 
         } catch (RemoteException | NotBoundException e) {
-            e.printStackTrace();
+            throw new IllegalStateException(
+                    "Could not find proxyClientAPI in the RMI registry at localhost:1099", e);
         }
 
         ///read input file with requests from client and split data
@@ -77,10 +78,24 @@ public class Client {
                     Registry serverRegistry = LocateRegistry.getRegistry(correctServerInfo.host,correctServerInfo.port);
                     ServiceInterface correctServer=(ServiceInterface)serverRegistry.lookup(correctServerInfo.serverName);
 
-                    Method serverMethod=correctServer.getClass().getMethod(request.getMethodName(), request.getArgTypesList());
+                    Class<?>[] methodTypes = new Class<?>[request.getArgTypesList().length + 1];
+                    methodTypes[0] = int.class;
+                    System.arraycopy(
+                            request.getArgTypesList(),
+                            0,
+                            methodTypes,
+                            1,
+                            request.getArgTypesList().length);
+
+                    List<Object> methodArgs = new ArrayList<>();
+                    methodArgs.add(request.getZoneNumber());
+                    methodArgs.addAll(request.getArgList());
+
+                    Method serverMethod = ServiceInterface.class.getMethod(
+                            request.getMethodName(), methodTypes);
 
                     long turnaroundTimeStart=System.currentTimeMillis();
-                    Object result=serverMethod.invoke(correctServer,request.getArgList().toArray());
+                    Object result=serverMethod.invoke(correctServer,methodArgs.toArray());
                     long turnaroundTimeEnd=System.currentTimeMillis();
                     long turnaroundTime=turnaroundTimeEnd-turnaroundTimeStart;
                     long executionTime=0; //TODO: CHANGE TO: result.executionTime;

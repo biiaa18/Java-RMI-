@@ -45,6 +45,7 @@ public class Request {
         //based on method, number of arguments change, but city can also be of several words
         List<Object> arguments = splitArguments(methodNamee, requestArguments);
         Class<?>[] typesOfArg = defineArgTypes(arguments);
+        System.out.println("methodNamee: " + methodNamee + " arguments: " + arguments + " clientZoneNumber: " + clientZoneNumber + " typesOfArg: " + Arrays.toString(typesOfArg));
         return new Request(methodNamee, arguments, clientZoneNumber, typesOfArg);
     }
 
