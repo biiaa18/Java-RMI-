@@ -2,6 +2,7 @@ package com.ass1.server;
 
 import com.ass1.Database.DatabaseConnector;
 
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
@@ -23,8 +24,9 @@ public class Server implements ServiceInterface {
             this.zone = zone;
             this.databaseConnector = new DatabaseConnector();
             // Bind the server to the RMI registry
+            String serverName = "server-" + port;
             ServiceInterface taskRegistrationServer = (ServiceInterface) UnicastRemoteObject.exportObject(this, 0);
-            registry.bind("server-" + port, taskRegistrationServer);
+            registry.bind(serverName, taskRegistrationServer);
             // Start the task processing thread
             Thread taskThread = new Thread(() -> {
                 while (requestProcessingThreadAlive.get()) {
@@ -32,12 +34,14 @@ public class Server implements ServiceInterface {
                 }
             }, "server-task-worker-" + port);
             taskThread.start();
-            // TODO: Register server on proxy server API
-            System.out.printf("Server bound as 'server-%s' on registry%n", port);
+            // Register server on proxy server API
+            ProxyInterfaceForServerRegistration proxyRegister=(ProxyInterfaceForServerRegistration) registry.lookup("proxyServerAPI");
+            proxyRegister.registerServer(serverName, port, "localhost", this.zone);
+            System.out.printf("Server bound as '%s' on registry%n", serverName);
             // keep running
             STOP_LATCH.await();
             requestProcessingThreadAlive.set(false);
-        } catch (RemoteException | AlreadyBoundException e) {
+        } catch (RemoteException | AlreadyBoundException | NotBoundException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -45,7 +49,26 @@ public class Server implements ServiceInterface {
     }
 
     @Override
+    public int getQueueSize() throws RemoteException {
+        //TODO:change this logic
+        int min=0;
+        int max=18;
+        int size= (int) (Math.random()*(max-min));
+        return size;
+    }
+
+    @Override
     public Integer getPopulationofCountry(int clientZone, String countryName) throws RemoteException {
+        //TODO: remember to gather statistics time on every method
+//        long waitingTimeStart=System.currentTimeMillis();
+        //add request to waiting list
+//        long waitingTimeEnd= System.currentTimeMillis();
+//        long executionTimeStart=System.currentTimeMillis();
+        //Object result= this.databaseConnector....
+//        long executionTimeEnd=System.currentTimeMillis();
+//        long waitingTime=waitingTimeEnd-waitingTimeStart;
+//        long executionTime=executionTimeEnd-executionTimeStart;
+        //return object or list with arguments ; waitingTime; executionTime.
         return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getPopulationofCountry(countryName));
     }
 
