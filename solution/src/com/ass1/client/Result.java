@@ -1,6 +1,8 @@
 package com.ass1.client;
 
-public class Result {
+import java.io.Serializable;
+
+public class Result implements Serializable {
     public Integer result;
     public long exeuctionTime;
     public long waitingTime;

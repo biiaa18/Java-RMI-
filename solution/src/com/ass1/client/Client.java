@@ -8,6 +8,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.sql.Array;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -23,6 +24,7 @@ import com.ass1.client.Request;
 import com.ass1.client.RequestStatistics;
 import com.ass1.ServerInfo;
 import com.ass1.client.Result;
+import org.knowm.xchart.*;
 
 public class Client {
     private static ProxyInterface proxyServer;
@@ -50,26 +52,31 @@ public class Client {
          File file = new File("exercise_1_input.txt");
 
          try (Scanner scanner1 = new Scanner(file);){
+             int lineNumber = 1;
              while (scanner1.hasNextLine()){
                  String line= scanner1.nextLine().trim();
                  if(!line.isEmpty()){
 
-                     requests.add(Request.readLine(line));
-                     //System.out.println("file:"+requests.size());
+                     try {
+                         Request newRequest = Request.readLine(line);
+                         requests.add(newRequest);
+                     } catch (IllegalArgumentException e) {
+                         System.out.println("Invalid request at line: " + lineNumber + ", Line content." + line + ". Error: " + e.getMessage());
+                     }
+                     lineNumber++;
                  }
              }
          } catch (FileNotFoundException e) {
              throw new RuntimeException(e);
          }
 
-
          //call request sending/ result writing 2 times with different delay T
          BufferedWriter writeOutputFile= new BufferedWriter(new FileWriter("naive_server.txt"));
         Client client= new Client();
-        client.runClientWithDelayT(50,writeOutputFile);
-         client.runClientWithDelayT(20,writeOutputFile);
-         writeOutputFile.close();
-        System.out.println(("done"));
+        client.runClientWithDelayT(0,writeOutputFile);
+         client.runClientWithDelayT(0,writeOutputFile);
+         //client.runClientWithDelayT(5,writeOutputFile); // Extra run at 5 just to test the overload mechanics of the servers.
+        System.out.println(("done with queries"));
     }
 
     public void runClientWithDelayT(Integer T, BufferedWriter writeOutputFile) throws Exception{
@@ -104,12 +111,25 @@ public class Client {
 
                     long turnaroundTimeStart = System.currentTimeMillis();
                     //remote invoke the method
-                    Result result = serverMethod.invoke(correctServer, methodArgs.toArray());
+                    Result result = (Result) serverMethod.invoke(correctServer, methodArgs.toArray());
                     long turnaroundTimeEnd = System.currentTimeMillis();
                     long turnaroundTime = turnaroundTimeEnd - turnaroundTimeStart;
                     long executionTime =result.exeuctionTime;
                     long waitingTime =result.waitingTime;
-                    statisticsMap.get(request.getMethodName()).sumTimeStatistics(turnaroundTime, executionTime, waitingTime);
+                    // TODO: Figure out why its getting this error: java.lang.NullPointerException: Cannot invoke "com.ass1.client.RequestStatistics.sumTimeStatistics(long, long, long)" because the return value of "java.util.Map.get(Object)" is null
+                    //	at com.ass1.client.Client.lambda$runClientWithDelayT$0(Client.java:112)
+                    //	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+                    //	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:330)
+                    //	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+                    //	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+                    //	at java.base/java.lang.Thread.run(Thread.java:1516)
+                    try {
+                        System.out.println("______________");
+                        System.out.println("turnaroundTime: " + turnaroundTime + "executionTime: " + executionTime + "waitintTime: " + waitingTime);
+                        statisticsMap.get(request.getMethodName()).sumTimeStatistics(turnaroundTime, executionTime, waitingTime);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
                     //writing to output file
                     // <result> <input query> (turnaround time: YY ms, execution time:
                     //ZZ ms, waiting time: TT ms, processed by Server <server#>)
@@ -145,5 +165,48 @@ public class Client {
             writeOutputFile.write(methodEntry.getValue().getStatistics(methodEntry.getKey())+"\n");
         }
         writeOutputFile.write("\n\n\n");
+    }
+
+    private static void displayStatistics(String title, String xName, String yName, String seriesName, String filename, double[] xData, double[] yData) {
+        //TODO: Typecast between long and double for xData and yData
+        try {
+            // Create Chart
+            XYChart chart = QuickChart.getChart(title, xName, yName, seriesName, xData, yData);
+
+            // Show it
+            //new SwingWrapper(chart).displayChart();
+
+            // Save it (any format: png, jpg, bmp, gif, tiff, svg, eps, pdf, …)
+            ChartEncoder.saveChart(chart, filename, "png");
+
+            // or save it in high-res
+            BitmapEncoder.saveBitmapWithDPI(chart, filename + "-high-dpi.png", BitmapEncoder.BitmapFormat.PNG, 300);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private ArrayList<HashMap<String, String>> parseServerLog(String file) {
+        try (Scanner scanner1 = new Scanner(file);){
+            ArrayList<HashMap<String, String>> keysAndValuesList = new ArrayList<>();
+            while (scanner1.hasNextLine()){
+                String line= scanner1.nextLine().trim();
+                System.out.println("Parsing line from server log: " + line
+                );
+                if(!line.isEmpty()){
+                    HashMap<String, String> keysAndValuesIndexed = new HashMap<>();
+                    String[] keyAndValues = line.split(";");
+                    for (String keyAndValue : keyAndValues) {
+                        String[] parts = keyAndValue.split(":", 2);
+                        if (parts.length == 2) {
+                            keysAndValuesIndexed.put(parts[0].trim(), parts[1].trim());
+                        }
+                        System.out.println("Parsed key-value pair: " + Arrays.toString(parts));
+                    }
+                    keysAndValuesList.add(keysAndValuesIndexed);
+                }
+            }
+            return keysAndValuesList;
+        }
     }
 }

@@ -28,6 +28,18 @@ public class Request {
 
     /// for making new request object, when reading request line
     public Request(String inputMethod, List<Object> argumentsList, Integer zoneN, Class<?>[] argTypes) {
+        // Validate request parameters
+        if (inputMethod == null || inputMethod.isEmpty()) {
+            System.out.println("Error: Method name cannot be null or empty.");
+            throw new IllegalArgumentException("Method name cannot be null or empty.");
+        }
+        if (argumentsList.getFirst() instanceof String firstArg) {
+            if (firstArg.isEmpty()) {
+                System.out.println("Error: First arg should not be empty if it's a string.");
+                throw new IllegalArgumentException("First arg should not be empty if it's a string.");
+            }
+        }
+
         this.methodName = inputMethod;
         this.argList = argumentsList;
         this.zoneNumber = zoneN;

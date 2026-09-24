@@ -17,7 +17,11 @@ public class RequestStatistics {
         amountOfEntries++;
     }
 
+    // TODO: Safe guard against division by zero
     public String getStatistics(String methodName){
+        if (amountOfEntries == 0) {
+            return methodName + " No entries recorded.";
+        }
         long avgTAT=methodAllTurnAroundTime/amountOfEntries;
         long avgET=methodAllExecutionTime/amountOfEntries;
         long avgWT=methodAllWaitingTime/amountOfEntries;

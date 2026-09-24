@@ -3,6 +3,9 @@ package com.ass1.server;
 import com.ass1.Database.DatabaseConnector;
 import com.ass1.client.Result;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
@@ -21,6 +24,7 @@ public class Server implements ServiceInterface {
     private final AtomicBoolean requestProcessingThreadAlive = new AtomicBoolean(true);
     private int zone;
     private String serverQueueLogFile;
+    private String serverName;
 
     public Server(Registry proxyRegistry, Registry workerRegistry, int workerPort, int zone,
                   CountDownLatch ready, AtomicReference<Throwable> startupFailure) {
@@ -30,12 +34,15 @@ public class Server implements ServiceInterface {
             this.databaseConnector = new DatabaseConnector();
             // Bind the server to the RMI registry
             String serverName = "server-" + zone;
+            this.serverName = serverName;
             this.serverQueueLogFile = "server_%d_queue_log.txt".formatted(zone);
+            this.deleteFile(this.serverQueueLogFile);
             ServiceInterface taskRegistrationServer = (ServiceInterface) UnicastRemoteObject.exportObject(this, 0);
             workerRegistry.bind(serverName, taskRegistrationServer);
             // Start the task processing thread
             Thread taskThread = new Thread(() -> {
                 while (requestProcessingThreadAlive.get()) {
+                    System.out.println("Server %s processing next task. Current queue size: %d".formatted(this.serverName, taskQueue.getQueueSize()));
                     taskQueue.executeNext();
                 }
             }, "server-task-worker-" + workerPort);
@@ -55,6 +62,8 @@ public class Server implements ServiceInterface {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             startupFailure.compareAndSet(null, e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         } finally {
             ready.countDown();
         }
@@ -66,22 +75,22 @@ public class Server implements ServiceInterface {
     }
 
     @Override
-    public Result getPopulationofCountry(String countryName, Integer clientZone) throws RemoteException {
+    public Result getPopulationofCountry(String countryName, Integer clientZone, Integer t) throws RemoteException {
         return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getPopulationofCountry(countryName));
     }
 
     @Override
-    public Result getNumberofCities(String countryName, Integer threshold, String comp, Integer clientZone) throws RemoteException {
+    public Result getNumberofCities(String countryName, Integer threshold, String comp, Integer clientZone, Integer t) throws RemoteException {
         return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCities(countryName, threshold, comp));
     }
 
     @Override
-    public Result getNumberofCountries(Integer citycount, Integer threshold, String comp, Integer clientZone) throws RemoteException {
+    public Result getNumberofCountries(Integer citycount, Integer threshold, String comp, Integer clientZone, Integer t) throws RemoteException {
         return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCountries(citycount, threshold, comp));
     }
 
     @Override
-    public Result getNumberofCountriesMM(Integer citycount, Integer minpopulation, Integer maxpopulation, Integer clientZone) throws RemoteException {
+    public Result getNumberofCountriesMM(Integer citycount, Integer minpopulation, Integer maxpopulation, Integer clientZone, Integer t) throws RemoteException {
         return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCountriesMM(
                 citycount, minpopulation, maxpopulation));
     }
@@ -91,7 +100,7 @@ public class Server implements ServiceInterface {
         simulateNetworkDelay(clientZone);
 
         long requestWaitStartTime = System.currentTimeMillis();
-        writeToLogFile("receivedTime" + requestWaitStartTime + "request: " + task.toString() + "; clientZone: " + clientZone + "; queueSize: " + taskQueue.getQueueSize());
+        writeToLogFile("receivedTime: " + requestWaitStartTime + "; clientZone: " + clientZone + "; queueSize: " + taskQueue.getQueueSize());
 
         //TODO: gather statistics time on every method
 //        long waitingTimeStart=System.currentTimeMillis();
@@ -107,6 +116,7 @@ public class Server implements ServiceInterface {
         // Create a ServerJob for the task and add it to the queue
         ServerJob serverJob = new ServerJob(task);
         taskQueue.add(serverJob);
+        System.out.println("New task added to queue on %s. Current queue size: %d".formatted(this.serverName, taskQueue.getQueueSize()));
 
         // Wait for the task to complete and return the result
         try {
@@ -157,5 +167,9 @@ public class Server implements ServiceInterface {
         } catch (java.io.IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public void deleteFile(String fileName) throws IOException {
+        Files.deleteIfExists(Path.of(fileName));
     }
 }
