@@ -98,9 +98,9 @@ public class Client {
                     argTypesWithT[request.getArgTypesList().length]=Integer.class;
 
 
-                    System.out.println("Client: arguments before matching: " + methodArgs + "  types: " + Arrays.toString(request.getArgTypesList())); // argTypesWithT
+                    System.out.println("Client: arguments before matching: " + methodArgs + "  types: " + Arrays.toString(argTypesWithT)); // argTypesWithT
                     //find matching method in server
-                    Method serverMethod = ServiceInterface.class.getMethod(request.getMethodName(), request.getArgTypesList()); // argTypesWithT
+                    Method serverMethod = ServiceInterface.class.getMethod(request.getMethodName(), argTypesWithT); // argTypesWithT
 
                     long turnaroundTimeStart = System.currentTimeMillis();
                     //remote invoke the method
