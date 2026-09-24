@@ -10,6 +10,7 @@ import java.util.concurrent.CountDownLatch;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.RemoteException;
+import java.util.concurrent.atomic.AtomicReference;
 
 
 public class Main {
@@ -28,8 +29,7 @@ public class Main {
             return;
         }
 
-        Thread proxyServerThread = new Thread(() -> ProxyServer.start(registry), "rmi-proxy-server-thread");
-        proxyServerThread.start();
+        ProxyServer.start(registry);
 
         // Initialize the database before starting the ServerSimulator
         try {
@@ -39,15 +39,26 @@ public class Main {
         }
 
         ServerSimulator serverSimulator = new ServerSimulator();
-        serverSimulator.initServers(registry);
-
+        CountDownLatch workersReady = new CountDownLatch(ServerSimulator.SERVER_COUNT);
+        AtomicReference<Throwable> workerStartupFailure = new AtomicReference<>();
+        serverSimulator.initServers(registry, 1101, workersReady, workerStartupFailure);
         try {
-            Thread.sleep(500);
+            workersReady.await();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while starting worker servers", e);
+        }
+        if (workerStartupFailure.get() != null) {
+            throw new RuntimeException("Worker server startup failed", workerStartupFailure.get());
         }
 
-        Thread clientThread = new Thread(Client::main, "rmi-client-thread");
+        Thread clientThread = new Thread(()->{
+            try{
+                Client.main();
+            }catch(Exception e){
+                throw new RuntimeException(e);
+            }
+        },"rmi-client-thread");
         clientThread.start();
 
         try {

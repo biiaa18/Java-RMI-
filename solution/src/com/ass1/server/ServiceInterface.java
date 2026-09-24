@@ -11,4 +11,6 @@ public interface ServiceInterface extends Remote{
     Integer getNumberofCountries(int clientZone, Integer citycount, Integer threshold, String comp) throws RemoteException;
 
     Integer getNumberofCountriesMM(int clientZone, Integer citycount, Integer minpopulation, Integer maxpopulation) throws RemoteException;
+
+    public int getQueueSize() throws RemoteException;
 }
