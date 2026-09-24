@@ -144,6 +144,6 @@ public class ProxyServer implements ProxyInterface, ProxyInterfaceForServerRegis
         servers.put(zone,info);
         serversReturned.put(name,0);
         serversWithQueueSize.put(name,0);
-        System.out.println(("in proxy registered: "+ name + " zone:"+ zone + "port:" + port + "host:"+host));
+        System.out.println(("in proxy registered: "+ name + ", zone: "+ zone + ", port: " + port + ", host: "+host));
     }
 }

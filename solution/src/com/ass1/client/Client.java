@@ -8,11 +8,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.lang.reflect.Method;
@@ -78,22 +74,17 @@ public class Client {
                     Registry serverRegistry = LocateRegistry.getRegistry(correctServerInfo.host,correctServerInfo.port);
                     ServiceInterface correctServer=(ServiceInterface)serverRegistry.lookup(correctServerInfo.serverName);
 
-                    Class<?>[] methodTypes = new Class<?>[request.getArgTypesList().length + 1];
-                    methodTypes[0] = int.class;
-                    System.arraycopy(
-                            request.getArgTypesList(),
-                            0,
-                            methodTypes,
-                            1,
-                            request.getArgTypesList().length);
 
                     List<Object> methodArgs = new ArrayList<>();
-                    methodArgs.add(request.getZoneNumber());
+                    //methodArgs.add(request.getZoneNumber());
                     methodArgs.addAll(request.getArgList());
 
-                    Method serverMethod = ServiceInterface.class.getMethod(
-                            request.getMethodName(), methodTypes);
+                    System.out.println("ARGS: "+methodArgs+"  types: "+ Arrays.toString(request.getArgTypesList()));
 
+                    Method serverMethod = ServiceInterface.class.getMethod(
+                            request.getMethodName());
+
+                    // TODO: Construct the response from the server and interpret the result to set the correct times
                     long turnaroundTimeStart=System.currentTimeMillis();
                     Object result=serverMethod.invoke(correctServer,methodArgs.toArray());
                     long turnaroundTimeEnd=System.currentTimeMillis();

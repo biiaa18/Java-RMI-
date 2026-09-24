@@ -19,6 +19,7 @@ public class Server implements ServiceInterface {
     private final TaskQueue taskQueue = new TaskQueue();
     private final AtomicBoolean requestProcessingThreadAlive = new AtomicBoolean(true);
     private int zone;
+    private String serverQueueLogFile;
 
     public Server(Registry proxyRegistry, Registry workerRegistry, int workerPort, int zone,
                   CountDownLatch ready, AtomicReference<Throwable> startupFailure) {
@@ -28,6 +29,7 @@ public class Server implements ServiceInterface {
             this.databaseConnector = new DatabaseConnector();
             // Bind the server to the RMI registry
             String serverName = "server-" + zone;
+            this.serverQueueLogFile = "server_%d_queue_log.txt".formatted(zone);
             ServiceInterface taskRegistrationServer = (ServiceInterface) UnicastRemoteObject.exportObject(this, 0);
             workerRegistry.bind(serverName, taskRegistrationServer);
             // Start the task processing thread
@@ -58,17 +60,39 @@ public class Server implements ServiceInterface {
     }
 
     @Override
-    public int getQueueSize() throws RemoteException {
-        //TODO:change this logic
-        int min=0;
-        int max=18;
-        int size= (int) (Math.random()*(max-min));
-        return size;
+    public Integer getQueueSize() throws RemoteException {
+        return taskQueue.getQueueSize();
     }
 
     @Override
-    public Integer getPopulationofCountry(int clientZone, String countryName) throws RemoteException {
-        //TODO: remember to gather statistics time on every method
+    public Integer getPopulationofCountry(String countryName, Integer clientZone) throws RemoteException {
+        return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getPopulationofCountry(countryName));
+    }
+
+    @Override
+    public Integer getNumberofCities(String countryName, Integer threshold, String comp, Integer clientZone) throws RemoteException {
+        return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCities(countryName, threshold, comp));
+    }
+
+    @Override
+    public Integer getNumberofCountries(Integer citycount, Integer threshold, String comp, Integer clientZone) throws RemoteException {
+        return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCountries(citycount, threshold, comp));
+    }
+
+    @Override
+    public Integer getNumberofCountriesMM(Integer citycount, Integer minpopulation, Integer maxpopulation, Integer clientZone) throws RemoteException {
+        return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCountriesMM(
+                citycount, minpopulation, maxpopulation));
+    }
+
+    private Integer submitTaskAndAwaitResponse(Integer clientZone, Callable<Integer> task) throws RemoteException {
+        // Simulate network delay based on the client's zone
+        simulateNetworkDelay(clientZone);
+        System.out.println("");
+
+        writeToLogFile("Request received from client in zone %d at %d".formatted(clientZone, System.currentTimeMillis()));
+
+        //TODO: gather statistics time on every method
 //        long waitingTimeStart=System.currentTimeMillis();
         //add request to waiting list
 //        long waitingTimeEnd= System.currentTimeMillis();
@@ -78,28 +102,6 @@ public class Server implements ServiceInterface {
 //        long waitingTime=waitingTimeEnd-waitingTimeStart;
 //        long executionTime=executionTimeEnd-executionTimeStart;
         //return object or list with arguments ; waitingTime; executionTime.
-        return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getPopulationofCountry(countryName));
-    }
-
-    @Override
-    public Integer getNumberofCities(int clientZone, String countryName, Integer threshold, String comp) throws RemoteException {
-        return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCities(countryName, threshold, comp));
-    }
-
-    @Override
-    public Integer getNumberofCountries(int clientZone, Integer citycount, Integer threshold, String comp) throws RemoteException {
-        return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCountries(citycount, threshold, comp));
-    }
-
-    @Override
-    public Integer getNumberofCountriesMM(int clientZone, Integer citycount, Integer minpopulation, Integer maxpopulation) throws RemoteException {
-        return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCountriesMM(
-                citycount, minpopulation, maxpopulation));
-    }
-
-    private Integer submitTaskAndAwaitResponse(int clientZone, Callable<Integer> task) throws RemoteException {
-        // Simulate network delay based on the client's zone
-        simulateNetworkDelay(clientZone);
 
         // Create a ServerJob for the task and add it to the queue
         ServerJob serverJob = new ServerJob(task);
@@ -112,6 +114,8 @@ public class Server implements ServiceInterface {
             Thread.currentThread().interrupt();
             throw new RemoteException("Request interrupted while waiting for task completion", e);
         }
+
+        writeToLogFile("Request from client in zone %d completed at %d".formatted(clientZone, System.currentTimeMillis()));
 
         if (serverJob.failure != null) {
             throw new RemoteException("Request failed", serverJob.failure);
@@ -143,6 +147,14 @@ public class Server implements ServiceInterface {
             Thread.sleep(networkDelayMs);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+        }
+    }
+
+    private synchronized void writeToLogFile(String message) {
+        try (java.io.FileWriter writer = new java.io.FileWriter("./server_logs/%s".formatted(this.serverQueueLogFile), true)) {
+            writer.write(message + System.lineSeparator());
+        } catch (java.io.IOException e) {
+            e.printStackTrace();
         }
     }
 }

@@ -4,7 +4,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class TaskQueue {
     private final LinkedBlockingQueue<ServerJob> jobQueue = new LinkedBlockingQueue<>();
-    private final LinkedBlockingQueue<Integer> results = new LinkedBlockingQueue<>();
 
     public void add(ServerJob serverJob) {
         try {
@@ -20,5 +19,9 @@ public class TaskQueue {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    public int getQueueSize() {
+        return jobQueue.size();
     }
 }

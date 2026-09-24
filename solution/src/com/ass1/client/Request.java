@@ -42,10 +42,10 @@ public class Request {
         String methodNamee = (String) requestArguments.remove(0);
         //always last
         Integer clientZoneNumber = Integer.parseInt(((String) requestArguments.removeLast()).split(":")[1]);
+        requestArguments.add(clientZoneNumber);
         //based on method, number of arguments change, but city can also be of several words
         List<Object> arguments = splitArguments(methodNamee, requestArguments);
         Class<?>[] typesOfArg = defineArgTypes(arguments);
-        System.out.println("methodNamee: " + methodNamee + " arguments: " + arguments + " clientZoneNumber: " + clientZoneNumber + " typesOfArg: " + Arrays.toString(typesOfArg));
         return new Request(methodNamee, arguments, clientZoneNumber, typesOfArg);
     }
 
@@ -53,6 +53,10 @@ public class Request {
     private static Class<?>[] defineArgTypes(List<Object> arguments) {
         Class<?>[] typesOfArgg = new Class<?>[arguments.size()];
         for (int i = 0; i < arguments.size(); i++) {
+            if (arguments.get(i) instanceof Integer) {
+                typesOfArgg[i] = Integer.class;
+                continue;
+            }
             String argument = (String) arguments.get(i);
             //check for negative int and find how many numbers
             //save type to array of types and change type in the argument list as well
@@ -63,6 +67,7 @@ public class Request {
                 typesOfArgg[i] = String.class;
             }
         }
+        System.out.println("FROM REQUEST: " + Arrays.toString(typesOfArgg) + " Size: " + arguments.size());
         return typesOfArgg;
     }
 
@@ -71,7 +76,9 @@ public class Request {
     //getNumberofCities : 3        //has name
     //getNumberofCountries : 3
     //getNumberofCountriesMM : 3
+    // TODO: Rework this to be dynamic, and so that it works for T when we add that later
     private static List<Object> splitArguments(String methodNamee, List<Object> line) {
+        System.out.println("METHODNAME: " + methodNamee + "  ARGS: " + line + "  SIZE: " + line.size());
         //case: no names
         if (methodNamee.equals("getNumberofCountriesMM") || methodNamee.equals("getNumberofCountries")) {
             return line;
