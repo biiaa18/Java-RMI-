@@ -73,9 +73,9 @@ public class Client {
          //call request sending/ result writing 2 times with different delay T
          BufferedWriter writeOutputFile= new BufferedWriter(new FileWriter("naive_server.txt"));
         Client client= new Client();
-        client.runClientWithDelayT(0,writeOutputFile);
-         client.runClientWithDelayT(0,writeOutputFile);
-         //client.runClientWithDelayT(5,writeOutputFile); // Extra run at 5 just to test the overload mechanics of the servers.
+        client.runClientWithDelayT(50,writeOutputFile);
+         client.runClientWithDelayT(20,writeOutputFile);
+         writeOutputFile.close();
         System.out.println(("done with queries"));
     }
 
@@ -144,6 +144,7 @@ public class Client {
                                         waitingTime + " ms, processed by Server " +
                                         correctServerInfo.serverName + ")\n"
                         );
+
                         writeOutputFile.flush();
                     }
 
@@ -159,54 +160,11 @@ public class Client {
         }
 
         invokeRequestsConcurrently.shutdown();
-        //invokeRequestsConcurrently.awaitTermination(10, TimeUnit.SECONDS);
+        invokeRequestsConcurrently.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
         //6 entries of statistics per method
         for(Map.Entry<String,RequestStatistics> methodEntry: statisticsMap.entrySet()){
             writeOutputFile.write(methodEntry.getValue().getStatistics(methodEntry.getKey())+"\n");
         }
         writeOutputFile.write("\n\n\n");
-    }
-
-    private static void displayStatistics(String title, String xName, String yName, String seriesName, String filename, double[] xData, double[] yData) {
-        //TODO: Typecast between long and double for xData and yData
-        try {
-            // Create Chart
-            XYChart chart = QuickChart.getChart(title, xName, yName, seriesName, xData, yData);
-
-            // Show it
-            //new SwingWrapper(chart).displayChart();
-
-            // Save it (any format: png, jpg, bmp, gif, tiff, svg, eps, pdf, …)
-            ChartEncoder.saveChart(chart, filename, "png");
-
-            // or save it in high-res
-            BitmapEncoder.saveBitmapWithDPI(chart, filename + "-high-dpi.png", BitmapEncoder.BitmapFormat.PNG, 300);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private ArrayList<HashMap<String, String>> parseServerLog(String file) {
-        try (Scanner scanner1 = new Scanner(file);){
-            ArrayList<HashMap<String, String>> keysAndValuesList = new ArrayList<>();
-            while (scanner1.hasNextLine()){
-                String line= scanner1.nextLine().trim();
-                System.out.println("Parsing line from server log: " + line
-                );
-                if(!line.isEmpty()){
-                    HashMap<String, String> keysAndValuesIndexed = new HashMap<>();
-                    String[] keyAndValues = line.split(";");
-                    for (String keyAndValue : keyAndValues) {
-                        String[] parts = keyAndValue.split(":", 2);
-                        if (parts.length == 2) {
-                            keysAndValuesIndexed.put(parts[0].trim(), parts[1].trim());
-                        }
-                        System.out.println("Parsed key-value pair: " + Arrays.toString(parts));
-                    }
-                    keysAndValuesList.add(keysAndValuesIndexed);
-                }
-            }
-            return keysAndValuesList;
-        }
     }
 }

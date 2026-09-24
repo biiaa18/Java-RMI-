@@ -12,6 +12,9 @@ public class RequestStatistics {
         methodAllTurnAroundTime+=TAT;
         methodAllExecutionTime+=ET;
         methodAllWaitingTime+=WT;
+        if (amountOfEntries == 0) {
+            methodMinTurnAroundTime = TAT;
+        }
         methodMinTurnAroundTime=Math.min(methodMinTurnAroundTime,methodAllTurnAroundTime);
         methodMaxTurnAroundTime=Math.max(methodMaxTurnAroundTime,methodAllTurnAroundTime);
         amountOfEntries++;
