@@ -2,6 +2,9 @@ package com.ass1.server;
 
 import com.ass1.Database.DatabaseConnector;
 import com.ass1.client.Result;
+import org.knowm.xchart.ChartEncoder;
+import org.knowm.xchart.QuickChart;
+import org.knowm.xchart.XYChart;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -11,6 +14,9 @@ import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.rmi.AlreadyBoundException;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.CountDownLatch;
@@ -25,6 +31,7 @@ public class Server implements ServiceInterface {
     private int zone;
     private String serverQueueLogFile;
     private String serverName;
+    private final Map<Integer, LinkedHashMap<Long, Integer>> serverStatistics = new HashMap<>();
 
     public Server(Registry proxyRegistry, Registry workerRegistry, int workerPort, int zone,
                   CountDownLatch ready, AtomicReference<Throwable> startupFailure) {
@@ -76,31 +83,31 @@ public class Server implements ServiceInterface {
 
     @Override
     public Result getPopulationofCountry(String countryName, Integer clientZone, Integer t) throws RemoteException {
-        return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getPopulationofCountry(countryName));
+        return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getPopulationofCountry(countryName), t);
     }
 
     @Override
     public Result getNumberofCities(String countryName, Integer threshold, String comp, Integer clientZone, Integer t) throws RemoteException {
-        return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCities(countryName, threshold, comp));
+        return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCities(countryName, threshold, comp), t);
     }
 
     @Override
     public Result getNumberofCountries(Integer citycount, Integer threshold, String comp, Integer clientZone, Integer t) throws RemoteException {
-        return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCountries(citycount, threshold, comp));
+        return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCountries(citycount, threshold, comp), t);
     }
 
     @Override
     public Result getNumberofCountriesMM(Integer citycount, Integer minpopulation, Integer maxpopulation, Integer clientZone, Integer t) throws RemoteException {
         return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCountriesMM(
-                citycount, minpopulation, maxpopulation));
+                citycount, minpopulation, maxpopulation), t);
     }
 
-    private Result submitTaskAndAwaitResponse(Integer clientZone, Callable<Integer> task) throws RemoteException {
+    private Result submitTaskAndAwaitResponse(Integer clientZone, Callable<Integer> task, Integer t) throws RemoteException {
         // Simulate network delay based on the client's zone
         simulateNetworkDelay(clientZone);
 
         long requestWaitStartTime = System.currentTimeMillis();
-        writeToLogFile("receivedTime: " + requestWaitStartTime + "; clientZone: " + clientZone + "; queueSize: " + taskQueue.getQueueSize());
+        updateStatistics("receivedTime: " + requestWaitStartTime + "; clientZone: " + clientZone + "; queueSize: " + taskQueue.getQueueSize(), t);
 
         //TODO: gather statistics time on every method
 //        long waitingTimeStart=System.currentTimeMillis();
@@ -161,7 +168,11 @@ public class Server implements ServiceInterface {
         }
     }
 
-    private synchronized void writeToLogFile(String message) {
+    private synchronized void updateStatistics(String message, Integer t) {
+        serverStatistics
+                .computeIfAbsent(t, ignored -> new LinkedHashMap<>())
+                .put(System.currentTimeMillis(), taskQueue.getQueueSize());
+        updateServerGraphs(t);
         try (java.io.FileWriter writer = new java.io.FileWriter(serverQueueLogFile, true)) {
             writer.write(message + System.lineSeparator());
         } catch (java.io.IOException e) {
@@ -171,5 +182,36 @@ public class Server implements ServiceInterface {
 
     public void deleteFile(String fileName) throws IOException {
         Files.deleteIfExists(Path.of(fileName));
+    }
+
+    private void updateServerGraphs(Integer T) {
+        LinkedHashMap<Long, Integer> statisticsForT = serverStatistics.get(T);
+        if (statisticsForT == null || statisticsForT.isEmpty()) {
+            return;
+        }
+
+        double[] timestamps = new double[statisticsForT.size()];
+        double[] queueSizes = new double[statisticsForT.size()];
+        int sampleIndex = 0;
+        for (Map.Entry<Long, Integer> statistic : statisticsForT.entrySet()) {
+            timestamps[sampleIndex] = statistic.getKey();
+            queueSizes[sampleIndex] = statistic.getValue();
+            sampleIndex++;
+        }
+
+        String filename = "server_%d_queue_T%d.png".formatted(zone, T);
+        try {
+            XYChart chart = QuickChart.getChart(
+                    "Server %d Statistics (T=%d)".formatted(zone, T),
+                    "Unix timestamp (ms)",
+                    "Queue Size",
+                    "Server %d queue size".formatted(zone),
+                    timestamps,
+                    queueSizes
+            );
+            ChartEncoder.saveChart(chart, filename, "png");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
