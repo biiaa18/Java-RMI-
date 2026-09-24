@@ -1,6 +1,7 @@
 package com.ass1.server;
 
 import com.ass1.Database.DatabaseConnector;
+import com.ass1.client.Result;
 
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -65,32 +66,32 @@ public class Server implements ServiceInterface {
     }
 
     @Override
-    public Integer getPopulationofCountry(String countryName, Integer clientZone) throws RemoteException {
+    public Result getPopulationofCountry(String countryName, Integer clientZone) throws RemoteException {
         return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getPopulationofCountry(countryName));
     }
 
     @Override
-    public Integer getNumberofCities(String countryName, Integer threshold, String comp, Integer clientZone) throws RemoteException {
+    public Result getNumberofCities(String countryName, Integer threshold, String comp, Integer clientZone) throws RemoteException {
         return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCities(countryName, threshold, comp));
     }
 
     @Override
-    public Integer getNumberofCountries(Integer citycount, Integer threshold, String comp, Integer clientZone) throws RemoteException {
+    public Result getNumberofCountries(Integer citycount, Integer threshold, String comp, Integer clientZone) throws RemoteException {
         return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCountries(citycount, threshold, comp));
     }
 
     @Override
-    public Integer getNumberofCountriesMM(Integer citycount, Integer minpopulation, Integer maxpopulation, Integer clientZone) throws RemoteException {
+    public Result getNumberofCountriesMM(Integer citycount, Integer minpopulation, Integer maxpopulation, Integer clientZone) throws RemoteException {
         return submitTaskAndAwaitResponse(clientZone, () -> databaseConnector.getNumberofCountriesMM(
                 citycount, minpopulation, maxpopulation));
     }
 
-    private Integer submitTaskAndAwaitResponse(Integer clientZone, Callable<Integer> task) throws RemoteException {
+    private Result submitTaskAndAwaitResponse(Integer clientZone, Callable<Integer> task) throws RemoteException {
         // Simulate network delay based on the client's zone
         simulateNetworkDelay(clientZone);
-        System.out.println("");
 
-        writeToLogFile("Request received from client in zone %d at %d".formatted(clientZone, System.currentTimeMillis()));
+        long requestWaitStartTime = System.currentTimeMillis();
+        writeToLogFile("receivedTime" + requestWaitStartTime + "request: " + task.toString() + "; clientZone: " + clientZone + "; queueSize: " + taskQueue.getQueueSize());
 
         //TODO: gather statistics time on every method
 //        long waitingTimeStart=System.currentTimeMillis();
@@ -115,12 +116,12 @@ public class Server implements ServiceInterface {
             throw new RemoteException("Request interrupted while waiting for task completion", e);
         }
 
-        writeToLogFile("Request from client in zone %d completed at %d".formatted(clientZone, System.currentTimeMillis()));
-
         if (serverJob.failure != null) {
             throw new RemoteException("Request failed", serverJob.failure);
         }
-        return serverJob.result;
+
+        // Construct a result object containing the result, waiting time, and execution time for the client
+        return new Result(serverJob.result, serverJob.waitingTime, serverJob.executionTime);
     }
 
     /**
@@ -151,7 +152,7 @@ public class Server implements ServiceInterface {
     }
 
     private synchronized void writeToLogFile(String message) {
-        try (java.io.FileWriter writer = new java.io.FileWriter("./server_logs/%s".formatted(this.serverQueueLogFile), true)) {
+        try (java.io.FileWriter writer = new java.io.FileWriter(serverQueueLogFile, true)) {
             writer.write(message + System.lineSeparator());
         } catch (java.io.IOException e) {
             e.printStackTrace();
