@@ -42,9 +42,11 @@ public class Request {
         String methodNamee = (String) requestArguments.remove(0);
         //always last
         Integer clientZoneNumber = Integer.parseInt(((String) requestArguments.removeLast()).split(":")[1]);
-        requestArguments.add(clientZoneNumber);
         //based on method, number of arguments change, but city can also be of several words
+        //split arguments of the method correctly
         List<Object> arguments = splitArguments(methodNamee, requestArguments);
+        //add zone number at the end for future delay calculation
+        arguments.add(clientZoneNumber);
         Class<?>[] typesOfArg = defineArgTypes(arguments);
         return new Request(methodNamee, arguments, clientZoneNumber, typesOfArg);
     }
@@ -58,7 +60,7 @@ public class Request {
                 continue;
             }
             String argument = (String) arguments.get(i);
-            //check for negative int and find how many numbers
+            //check for possible negative int and find how many numbers
             //save type to array of types and change type in the argument list as well
             if (argument.matches("-?\\d+")) {
                 typesOfArgg[i] = Integer.class;
@@ -67,7 +69,7 @@ public class Request {
                 typesOfArgg[i] = String.class;
             }
         }
-        System.out.println("FROM REQUEST: " + Arrays.toString(typesOfArgg) + " Size: " + arguments.size());
+
         return typesOfArgg;
     }
 
@@ -78,7 +80,6 @@ public class Request {
     //getNumberofCountriesMM : 3
     // TODO: Rework this to be dynamic, and so that it works for T when we add that later
     private static List<Object> splitArguments(String methodNamee, List<Object> line) {
-        System.out.println("METHODNAME: " + methodNamee + "  ARGS: " + line + "  SIZE: " + line.size());
         //case: no names
         if (methodNamee.equals("getNumberofCountriesMM") || methodNamee.equals("getNumberofCountries")) {
             return line;
@@ -90,6 +91,7 @@ public class Request {
             StringBuilder completeArg = new StringBuilder();
             for (int i = 0; i < line.size(); i++) {
                 completeArg.append(line.get(i));
+                //everything is a name, but dont add space at the end
                 if (i < line.size() - 1) {
                     completeArg.append(" ");
                 }
@@ -101,8 +103,10 @@ public class Request {
         //case: 3 arguments, name
         else if (methodNamee.equals("getNumberofCities")) {
             StringBuilder completeArg = new StringBuilder();
+            //name has spaces, 2 arg from the end are not name
             for (int i = 0; i < line.size() - 2; i++) {
                 completeArg.append(line.get(i));
+                //do not add space at the end of name
                 if (i < line.size() - 3) {
                     completeArg.append(" ");
                 }
