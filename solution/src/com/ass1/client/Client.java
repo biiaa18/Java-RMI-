@@ -29,6 +29,7 @@ import org.knowm.xchart.*;
 public class Client {
     private static ProxyInterface proxyServer;
     private Map<String, RequestStatistics> statisticsMap= new HashMap<>();
+    private final Map<Integer, NavigableMap<Integer, Long>> turnaroundStatisticsByT = new HashMap<>();
     private static List<Request> requests=new ArrayList<>();
 
     private static String writeOriginalInputQuery(List<Object> args){
@@ -83,8 +84,11 @@ public class Client {
         writeOutputFile.write("----------T="+T+" ----------\n");
         ///for each request, invoke method remotely concurrently, simulate delay
         statisticsMap.clear();
+        turnaroundStatisticsByT.clear();
         ExecutorService invokeRequestsConcurrently= Executors.newCachedThreadPool();
+        int queryNumber = 0;
         for(Request request: requests) {
+            int submittedQueryNumber = ++queryNumber;
             //initialize new method entry
             statisticsMap.putIfAbsent(request.getMethodName(), new RequestStatistics());
             invokeRequestsConcurrently.submit(() -> {
@@ -114,6 +118,7 @@ public class Client {
                     Result result = (Result) serverMethod.invoke(correctServer, methodArgs.toArray());
                     long turnaroundTimeEnd = System.currentTimeMillis();
                     long turnaroundTime = turnaroundTimeEnd - turnaroundTimeStart;
+                    updateTurnaroundChart(T, submittedQueryNumber, turnaroundTime);
                     long executionTime =result.exeuctionTime;
                     long waitingTime =result.waitingTime;
                     // TODO: Figure out why its getting this error: java.lang.NullPointerException: Cannot invoke "com.ass1.client.RequestStatistics.sumTimeStatistics(long, long, long)" because the return value of "java.util.Map.get(Object)" is null
@@ -166,5 +171,34 @@ public class Client {
             writeOutputFile.write(methodEntry.getValue().getStatistics(methodEntry.getKey())+"\n");
         }
         writeOutputFile.write("\n\n\n");
+    }
+
+    private synchronized void updateTurnaroundChart(Integer T, int queryNumber, long turnaroundTime) {
+        NavigableMap<Integer, Long> statisticsForT =
+                turnaroundStatisticsByT.computeIfAbsent(T, ignored -> new TreeMap<>());
+        statisticsForT.put(queryNumber, turnaroundTime);
+
+        double[] queryNumbers = new double[statisticsForT.size()];
+        double[] turnaroundTimes = new double[statisticsForT.size()];
+        int sampleIndex = 0;
+        for (Map.Entry<Integer, Long> statistic : statisticsForT.entrySet()) {
+            queryNumbers[sampleIndex] = statistic.getKey();
+            turnaroundTimes[sampleIndex] = statistic.getValue();
+            sampleIndex++;
+        }
+
+        try {
+            XYChart chart = QuickChart.getChart(
+                    "Client Turnaround Time (T=%d)".formatted(T),
+                    "Query number",
+                    "Turnaround time (ms)",
+                    "Query turnaround time",
+                    queryNumbers,
+                    turnaroundTimes
+            );
+            ChartEncoder.saveChart(chart, "client_turnaround_T%d.png".formatted(T), "png");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
